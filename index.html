@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>书阁 - 私人阅读空间</title>
+<link rel="stylesheet" href="style.css">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+<div id="app">
+  <!-- 首页 -->
+  <div v-if="page === 'home'" class="home">
+    <header class="header">
+      <div class="header-inner">
+        <h1 class="logo" @click="page='home'">📚 书阁</h1>
+        <div class="search-box">
+          <input v-model="searchQuery" @keyup.enter="searchBooks" placeholder="搜索书名、作者..." />
+          <button @click="searchBooks">搜索</button>
+        </div>
+        <button class="shelf-btn" @click="page='shelf'">📖 我的书架 <span v-if="bookshelf.length">({{bookshelf.length}})</span></button>
+      </div>
+    </header>
+
+    <!-- 分类导航 -->
+    <nav class="categories">
+      <button :class="{active: activeCategory === '全部'}" @click="activeCategory='全部'">全部</button>
+      <button v-for="cat in categories" :class="{active: activeCategory === cat}" @click="activeCategory=cat">{{cat}}</button>
+    </nav>
+
+    <!-- 搜索结果 -->
+    <div v-if="searchQuery && searchResults.length" class="section">
+      <h2>搜索结果 ({{searchResults.length}})</h2>
+      <div class="book-grid">
+        <div v-for="book in searchResults" class="book-card" @click="openBook(book)">
+          <div class="book-cover" :style="{background: book.coverColor}">
+            <span class="cover-icon">{{book.icon}}</span>
+          </div>
+          <div class="book-info">
+            <h3>{{book.title}}</h3>
+            <p class="author">{{book.author}}</p>
+            <span class="category-tag">{{book.category}}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 分类展示 -->
+    <div v-if="!searchQuery" class="content">
+      <div v-for="cat in (activeCategory === '全部' ? categories : [activeCategory])" class="section">
+        <h2>{{cat}}</h2>
+        <div class="book-grid">
+          <div v-for="book in getBooksByCategory(cat)" class="book-card" @click="openBook(book)">
+            <div class="book-cover" :style="{background: book.coverColor}">
+              <span class="cover-icon">{{book.icon}}</span>
+            </div>
+            <div class="book-info">
+              <h3>{{book.title}}</h3>
+              <p class="author">{{book.author}}</p>
+              <p class="desc">{{book.description}}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="footer">
+      <p>书阁 · 私人阅读空间 | 共 {{allBooks.length}} 本藏书</p>
+    </footer>
+  </div>
+
+  <!-- 书籍详情页 -->
+  <div v-if="page === 'detail'" class="detail">
+    <header class="header">
+      <div class="header-inner">
+        <button class="back-btn" @click="page='home'">← 返回</button>
+        <h1 class="logo">📚 书阁</h1>
+      </div>
+    </header>
+    <div class="detail-content">
+      <div class="detail-header">
+        <div class="detail-cover" :style="{background: currentBook.coverColor}">
+          <span class="cover-icon">{{currentBook.icon}}</span>
+        </div>
+        <div class="detail-info">
+          <h1>{{currentBook.title}}</h1>
+          <p class="author">作者：{{currentBook.author}}</p>
+          <p class="category">分类：{{currentBook.category}}</p>
+          <p class="word-count">字数：约{{currentBook.wordCount}}字</p>
+          <p class="desc">{{currentBook.description}}</p>
+          <div class="detail-actions">
+            <button class="read-btn" @click="startReading(0)">开始阅读</button>
+            <button class="shelf-btn" @click="toggleBookshelf(currentBook)">
+              {{isInBookshelf(currentBook) ? '移出书架' : '加入书架'}}
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="chapter-list">
+        <h2>目录</h2>
+        <div class="chapters">
+          <div v-for="(ch, i) in currentBook.chapters" class="chapter-item" @click="startReading(i)">
+            <span class="chapter-num">第{{i+1}}章</span>
+            <span class="chapter-title">{{ch.title}}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 阅读页 -->
+  <div v-if="page === 'reader'" class="reader" :class="{'dark-mode': darkMode}">
+    <div class="reader-header" :class="{show: showControls}">
+      <button class="back-btn" @click="page='detail'">← 返回</button>
+      <span class="reader-title">{{currentBook.title}} - 第{{currentChapter+1}}章 {{currentBook.chapters[currentChapter].title}}</span>
+      <div class="reader-controls">
+        <button @click="changeFontSize(-1)">A-</button>
+        <span>{{fontSize}}px</span>
+        <button @click="changeFontSize(1)">A+</button>
+        <button @click="darkMode = !darkMode">{{darkMode ? '☀️' : '🌙'}}</button>
+      </div>
+    </div>
+    <div class="reader-body" @click="showControls = !showControls">
+      <div class="reader-content" :style="{fontSize: fontSize + 'px'}">
+        <h2 class="chapter-heading">第{{currentChapter+1}}章 {{currentBook.chapters[currentChapter].title}}</h2>
+        <div class="chapter-text" v-html="formatText(currentBook.chapters[currentChapter].content)"></div>
+      </div>
+    </div>
+    <div class="reader-footer" :class="{show: showControls}">
+      <button @click="prevChapter" :disabled="currentChapter === 0">上一章</button>
+      <span>{{currentChapter+1}} / {{currentBook.chapters.length}}</span>
+      <button @click="nextChapter" :disabled="currentChapter >= currentBook.chapters.length - 1">下一章</button>
+    </div>
+  </div>
+
+  <!-- 书架页 -->
+  <div v-if="page === 'shelf'" class="shelf">
+    <header class="header">
+      <div class="header-inner">
+        <button class="back-btn" @click="page='home'">← 返回</button>
+        <h1 class="logo">📖 我的书架</h1>
+      </div>
+    </header>
+    <div v-if="bookshelf.length === 0" class="empty-shelf">
+      <p>书架空空如也，去首页添加喜欢的书吧~</p>
+      <button @click="page='home'">去选书</button>
+    </div>
+    <div v-else class="book-grid shelf-grid">
+      <div v-for="book in bookshelfBooks" class="book-card" @click="openBook(book)">
+        <div class="book-cover" :style="{background: book.coverColor}">
+          <span class="cover-icon">{{book.icon}}</span>
+        </div>
+        <div class="book-info">
+          <h3>{{book.title}}</h3>
+          <p class="author">{{book.author}}</p>
+          <button class="remove-btn" @click.stop="toggleBookshelf(book)">移出</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<script src="books.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
