@@ -413,8 +413,8 @@ body {
   flex: 1;
   display: flex;
   justify-content: center;
-  padding: 60px 24px;
-  cursor: pointer;
+  padding: 70px 24px 80px;
+  overflow-y: auto;
 }
 
 .reader-content {
