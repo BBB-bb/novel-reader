@@ -62,7 +62,7 @@ createApp({
 
     const startReading = (chapterIndex) => {
       currentChapter.value = chapterIndex
-      showControls.value = false
+      showControls.value = true
       page.value = 'reader'
       window.scrollTo(0, 0)
     }

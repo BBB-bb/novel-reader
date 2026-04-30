@@ -120,7 +120,7 @@
         <button @click="darkMode = !darkMode">{{darkMode ? '☀️' : '🌙'}}</button>
       </div>
     </div>
-    <div class="reader-body" @click="showControls = !showControls">
+    <div class="reader-body">
       <div class="reader-content" :style="{fontSize: fontSize + 'px'}">
         <h2 class="chapter-heading">第{{currentChapter+1}}章 {{currentBook.chapters[currentChapter].title}}</h2>
         <div class="chapter-text" v-html="formatText(currentBook.chapters[currentChapter].content)"></div>
